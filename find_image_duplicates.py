@@ -3,11 +3,12 @@ from os.path import relpath
 from pathlib import Path
 from filehash import FileHash
 import glob
+import itertools
 
-basedir = Path("C:\\Labs\\DataNoDuplicates\\")  # "R:\\mp3\\שחר סגל ורועי בר נתן\\גלי צה_ל\\"
+basedirs = [Path("C:\\Labs\\DataNoDuplicates\\")]  # "R:\\mp3\\שחר סגל ורועי בר נתן\\גלי צה_ל\\"
 
 
-def insert_file_to_dict(hashdict: dict, hasher, file):
+def insert_file_to_dict(basedir:Path, hashdict: dict, hasher, file):
     file_hash = hasher.hash_file(file)
     if file_hash not in hashdict:
         hashdict[file_hash] = []
@@ -18,12 +19,14 @@ def insert_file_to_dict(hashdict: dict, hasher, file):
 if __name__ == "__main__":
     files_by_hash = {}
     md5hasher = FileHash('md5')
-    files = glob.glob(str(basedir) + '/**/*.png', recursive=True)
 
-    for i, file in enumerate(files):
-        # if i>100:
-        #     break;
-        insert_file_to_dict(files_by_hash, md5hasher, file)
+    for basedir in basedirs:
+        files = glob.glob(str(basedir) + '/**/*.png', recursive=True)
+
+        for i, file in enumerate(files):
+            # if i>100:
+            #     break;
+            insert_file_to_dict(basedir, files_by_hash, md5hasher, file)
 
     total_duplicate_types = 0
     total_duplicates = 0
@@ -34,7 +37,7 @@ if __name__ == "__main__":
             total_duplicates = total_duplicates + len(images)
 
     print()
-    print(f'Base directory: {basedir}')
+    print(f'Base directories: {[str(basedir) for basedir in basedirs]}')
     print(f'Total different images: {len(files_by_hash.keys())},Total duplicate instances count: {total_duplicate_types}, different images count: {total_duplicates}')
 
 
