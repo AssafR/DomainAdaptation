@@ -4,7 +4,7 @@ from pathlib import Path
 from filehash import FileHash
 import glob
 
-basedir = Path("C:\\Labs\\Data\\")  # "R:\\mp3\\שחר סגל ורועי בר נתן\\גלי צה_ל\\"
+basedir = Path("C:\\Labs\\DataNoDuplicates\\")  # "R:\\mp3\\שחר סגל ורועי בר נתן\\גלי צה_ל\\"
 
 
 def insert_file_to_dict(hashdict: dict, hasher, file):
