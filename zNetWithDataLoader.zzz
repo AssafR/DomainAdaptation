@@ -213,6 +213,7 @@
    ],
    "source": [
     "BATCH_SIZE = 16\n",
+    "\n",
     "''' The function takes the data loader and a parameter  '''\n",
     "def create_train_val_slice(image_datasets,sample_size=None,val_same_as_train=False):\n",
     "    dataset_sizes = {x: len(image_datasets[x]) for x in ['train', 'val']}\n",
