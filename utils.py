@@ -23,6 +23,15 @@ class GrayscaleToRgb:
         image = np.dstack([image, image, image])
         return Image.fromarray(image)
 
+def freeze_layers_grad(model, total_freeze_layers = 7):
+    # Parameters of newly constructed modules have requires_grad=True by default
+    layer = 0
+    for child in model.children():
+        layer += 1
+        # freezes layers 1-6 in the total 10 layers of Resnet50
+        if layer < total_freeze_layers:
+            for param in child.parameters():
+                param.requires_grad = False
 
 class GradientReversalFunction(Function):
     """
