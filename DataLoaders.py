@@ -1,5 +1,6 @@
 from torchvision import datasets, transforms
 from torch.utils import data
+import torch
 from os import path
 import random
 
@@ -56,7 +57,7 @@ class DataLoaders:
             img_dataset = {x: torch.utils.data.Subset(img_dataset[x], sample_n[x]) for x in ['train', 'val']}
             dataset_sizes = {x: len(img_dataset[x]) for x in ['train', 'val']}
 
-        dataloaders = {x: torch.utils.data.DataLoader(img_dataset[x], batch_size=BATCH_SIZE,
+        dataloaders = {x: torch.utils.data.DataLoader(img_dataset[x], batch_size=self.batch_size,
                                                       shuffle=True, num_workers=0) for x in ['train', 'val']}
         return dataloaders, dataset_sizes
 
