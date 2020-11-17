@@ -2,13 +2,13 @@ import torch
 import time
 
 class Trainer:
-    def __init__(self, domain1_dataloader, domain2_dataloader, batch_size):
-        self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    def __init__(self, device, domain1_dataloader, domain2_dataloader, batch_size):
+        self.device = device
         self.domain1_dataloader = domain1_dataloader
         self.domain2_dataloader = domain2_dataloader
         self.batch_size = batch_size
 
-    def binary_acc(y_pred, y_test):
+    def binary_acc(self,y_pred, y_test):
         y_pred_tag = torch.round(torch.sigmoid(y_pred))
 
         correct_results_sum = (y_pred_tag == y_test).sum().float()
