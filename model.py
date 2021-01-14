@@ -1,11 +1,31 @@
 from utils import NET_ARCHICECTURE
-import torch
+import torch.nn as nn
 from torch.autograd import Function
+from torchvision import models
 
-def get_activation(name):
-    def hook(model, input, output):
-        model.activation[name] = output #.detach()
-    return hook
+DROPOUT_PROB = 0.5
+
+def lin_one_fc(num_ftrs, num_classes):
+    return nn.Linear(num_ftrs, num_classes)
+
+def lin_two_fc(num_ftrs, num_classes):
+    return nn.Sequential(
+        nn.Linear(num_ftrs, 64),
+        nn.ReLU(),
+        nn.Dropout(DROPOUT_PROB),
+        nn.Linear(64, num_classes)
+    )
+
+def lin_three_fc(num_ftrs, num_classes):
+    return nn.Sequential(
+        nn.Linear(num_ftrs, 50),
+        nn.ReLU(),
+        nn.Dropout(DROPOUT_PROB),
+        nn.Linear(50, 20),
+        nn.ReLU(),
+        nn.Dropout(DROPOUT_PROB),
+        nn.Linear(20, num_classes)
+    )
 
 linear_model_selector = {
     NET_ARCHICECTURE.ONE_FC: lin_one_fc,
@@ -14,62 +34,86 @@ linear_model_selector = {
 }
 
 
-def get_model(device, class_names, architecure : NET_ARCHICECTURE):
-    assert architecure in linear_model_selector.keys()
-    
-    model_conv = models.resnet18(pretrained=True)
-    #model_conv = models.resnet50(pretrained=True)
-    #model_conv = models.resnet101(pretrained=True)    
+def get_activation(name):
+    def hook(model, input, output):
+        model.activation[name] = output #.detach()
+    return hook
 
-    DROPOUT_PROB = 0.5
-
-    num_ftrs = model_conv.fc.in_features #The size of feature extractor output
-
-
-     
-    try: 
-        model_conv.fc = linear_model_selector[architecure]()
-    except:
-        raise Exception(f"Value {architecure} illegal")
-
-    model_conv.avgpool.activation = {}
-
-    model_conv.avgpool.register_forward_hook(get_activation('avgpool'))
-
-    model_conv.discriminator = nn.Sequential(
+class Discriminator(nn,.Module):
+    def __init__(self):
+        self._module =  nn.Sequential(
         GradientReversal(),
         nn.Linear(num_ftrs, 50),
         nn.ReLU(),
         nn.Linear(50, 20),
         nn.ReLU(),
         nn.Linear(20, 1)
-    ).to(device)
+    )
+        
+    def forward(x): 
+        return self._module(x)
 
-    model_conv = model_conv.to(device)
+class MyNewModel(torch.nn.Module):
+    _feature_extractor: torch.nn.Module
+    _classifier: torch.nn.Module
+    _discriminator: torch.nn.Module
+    
+    def __init__(full_classifier:torch.nn.Module, use_discriminator: bool, num_classes:int):
+        self.use_discriminator = use_discriminator
+        num_ftrs = full_classifier.fc.in_features
+#         self._feature_extracgtor = nn.Sequential(full_classfier.layers[:-1])
+        self._feature_extractor = full_classifier
+        self._feature_extractor.fc = nn.Sequential() # De-facto 'identity' (empty layer, copies input to output).
+        self._classifier = nn.Linear(num_ftrs, num_classes) 
+        self._discriminator = Discriminator()
+        
+    #define discriminator class
+    
+    def forward(x):
+        x = self._feature_extractor(x)
+        y = self._classifier(x)
+        if self.use_discriminator:
+            z = self._discriminator(x)
+        else:
+            z = None
+        
+        return y, z
+
+#     ... in train script:
+#         y, z = model(x)
+#         loss = torch.nll(y, y_l)
+#         if z i s not None:
+#             loss += lambda * torch.nll(z, z_l)
+#     loss.backwards()  
+    
+    
+def get_model(device, class_names, architecture : NET_ARCHICECTURE):
+    assert architecture in linear_model_selector.keys()
+    
+    model_conv = models.resnet18(pretrained=True)
+    #model_conv = models.resnet50(pretrained=True)
+    #model_conv = models.resnet101(pretrained=True)    
+
+
+#     num_ftrs = model_conv.fc.in_features #The size of feature extractor output
+#     num_classes = len(class_names)
+#     model_conv.fc = linear_model_selector[architecture](num_ftrs, num_classes)
+
+#     model_conv.avgpool.activation = {}
+#     model_conv.avgpool.register_forward_hook(get_activation('avgpool'))
+
+#     model_conv.discriminator = nn.Sequential(
+#         GradientReversal(),
+#         nn.Linear(num_ftrs, 50),
+#         nn.ReLU(),
+#         nn.Linear(50, 20),
+#         nn.ReLU(),
+#         nn.Linear(20, 1)
+#     ).to(device)
+
+    model_conv = MyNewModel(model_conv, use_disc, len(class_names)).to(device)
     return model_conv
 
-
-def lin_one_fc():
-    return nn.Linear(num_ftrs, len(class_names))
-
-def lin_two_fc():
-    return nn.Sequential(
-        nn.Linear(num_ftrs, 64),
-        nn.ReLU(),
-        nn.Dropout(DROPOUT_PROB),
-        nn.Linear(64, len(class_names))
-    )
-
-def lin_three_fc():
-    return nn.Sequential(
-        nn.Linear(num_ftrs, 50),
-        nn.ReLU(),
-        nn.Dropout(DROPOUT_PROB),
-        nn.Linear(50, 20),
-        nn.ReLU(),
-        nn.Dropout(DROPOUT_PROB),
-        nn.Linear(20, len(class_names))
-    )
 
 def set_requires_grad(model, requires_grad=True):
     for param in model.parameters():
@@ -88,7 +132,7 @@ def freeze_layers_grad(model, total_freeze_layers = 7):
 
 class GradientReversalFunction(Function):
     """
-    Gradient Reversal Layer from:
+   Gradient Reversal Layer from:
     Unsupervised Domain Adaptation by Backpropagation (Ganin & Lempitsky, 2015)
     Forward pass is the identity function. In the backward pass,
     the upstream gradients are multiplied by -lambda (i.e. gradient is reversed)
@@ -107,7 +151,7 @@ class GradientReversalFunction(Function):
         return dx, None
 
 
-class GradientReversal(torch.nn.Module):
+class GradientReversal(nn.Module):
     def __init__(self, lambda_=1):
         super(GradientReversal, self).__init__()
         self.lambda_ = lambda_

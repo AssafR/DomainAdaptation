@@ -1,5 +1,8 @@
 import torch
 import time
+from torch import softmax
+from sklearn.metrics import roc_auc_score
+
 
 class Trainer:
     def __init__(self, device, domain1_dataloader, domain2_dataloader, batch_size):
@@ -31,7 +34,7 @@ class Trainer:
                                   self.domain2_dataloader.data['train'])  # TODO check how females_data is built
             for i, ((domain1_x, domain1_label), (domain2_x, _)) in enumerate(join_dataloader):
                 # data['train'] contains (domain1_x, domain1_y) for every batch (so i=[1...NUM OF BATCHES])
-                samples = torch.cat([domain1_x, domain2_x])
+                samples = torch.cat([domain1_x, domain2_x]) # Concatenate samples from domain1 and domain2 
                 samples = samples.to(self.device)
                 label_y = domain1_label.to(self.device)
                 domain_y = torch.cat([torch.ones(domain1_x.shape[0]), torch.zeros(domain2_x.shape[0])])
@@ -42,21 +45,19 @@ class Trainer:
 
                 # forward
                 with torch.set_grad_enabled(True):
-                    label_preds = training_params.model(samples)[
-                                  :domain1_x.shape[0]]  # TODO check if x[:domain1_x.shape[0]] = domain1_x
-                    label_loss = training_params.label_criterion(label_preds, label_y)
+                    # TODO: Change training_params.model to the new classifier head
+                    label_preds = training_params.model(samples)[:domain1_x.shape[0]] # Feed classifier only with domain1  
+                    loss = training_params.label_criterion(label_preds, label_y) # Compare the classifier prediction with actual y
 
-                    extracted_features = training_params.model.avgpool.activation[
-                        'avgpool']  # Size: torch.Size([16, 512, 1, 1])
+                    # Todo: Delete the following two lines with extracted_features
+                    extracted_features = training_params.model.avgpool.activation['avgpool']  # Size: torch.Size([16, 512, 1, 1])
                     extracted_features = extracted_features.view(extracted_features.shape[0], -1)
-                    domain_preds = training_params.model.discriminator(extracted_features).squeeze()
 
-                    if use_discriminator:
+                    if use_discriminator: # TODO: Instead of using this flag, use the model's built-in flag (use_discriminator), delete from function parameter
+                        domain_preds = training_params.model.discriminator(extracted_features).squeeze()
                         domain_loss = training_params.domain_criterion(domain_preds, domain_y)
-                    else:
-                        domain_loss = 0
+                        loss = loss + domain_loss
 
-                    loss = label_loss + domain_loss
                     # backward + optimize only if in training phase
                     loss.backward()
                     training_params.optimizer.step()
