@@ -46,7 +46,9 @@ class Trainer:
                 # forward
                 with torch.set_grad_enabled(True):
                     # TODO: Change training_params.model to the new classifier head
-                    label_preds = training_params.model(samples)[:domain1_x.shape[0]] # Feed classifier only with domain1  
+                    #label_preds = training_params.model(samples)[:domain1_x.shape[0]] # Feed classifier only with domain1  
+                    label_preds = training_params.model(samples)[:domain1_x.shape[0]] 
+                    # label_preds, domain_preds = training_params.model(samples) TODO: THIS IS THE NEW VERSION
                     loss = training_params.label_criterion(label_preds, label_y) # Compare the classifier prediction with actual y
 
                     # Todo: Delete the following two lines with extracted_features
@@ -54,7 +56,7 @@ class Trainer:
                     extracted_features = extracted_features.view(extracted_features.shape[0], -1)
 
                     if use_discriminator: # TODO: Instead of using this flag, use the model's built-in flag (use_discriminator), delete from function parameter
-                        domain_preds = training_params.model.discriminator(extracted_features).squeeze()
+                        domain_preds = training_params.model.discriminator(extracted_features).squeeze() # TODO: Delete this line, check if needed 'squeeze' in the replacement 
                         domain_loss = training_params.domain_criterion(domain_preds, domain_y)
                         loss = loss + domain_loss
 
