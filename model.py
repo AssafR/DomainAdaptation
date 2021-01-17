@@ -53,7 +53,7 @@ class Discriminator(nn,.Module):
     def forward(x): 
         return self._module(x)
 
-class MyNewModel(torch.nn.Module):
+class AdversarialModel(torch.nn.Module):
     _feature_extractor: torch.nn.Module
     _classifier: torch.nn.Module
     _discriminator: torch.nn.Module
@@ -111,7 +111,7 @@ def get_model(device, class_names, architecture : NET_ARCHICECTURE):
 #         nn.Linear(20, 1)
 #     ).to(device)
 
-    model_conv = MyNewModel(model_conv, use_disc, len(class_names)).to(device)
+    model_conv = AdversarialModel(model_conv, use_disc, len(class_names)).to(device)
     return model_conv
 
 
