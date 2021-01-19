@@ -2,6 +2,7 @@ from utils import NET_ARCHICECTURE
 import torch.nn as nn
 from torch.autograd import Function
 from torchvision import models
+import torch.nn as nn
 
 DROPOUT_PROB = 0.5
 
@@ -39,8 +40,9 @@ def get_activation(name):
         model.activation[name] = output #.detach()
     return hook
 
-class Discriminator(nn,.Module):
-    def __init__(self):
+class Discriminator(nn.Module):
+    def __init__(self, num_ftrs):
+        super(Discriminator, self).__init__()
         self._module =  nn.Sequential(
         GradientReversal(),
         nn.Linear(num_ftrs, 50),
@@ -50,26 +52,31 @@ class Discriminator(nn,.Module):
         nn.Linear(20, 1)
     )
         
-    def forward(x): 
+    def forward(self, x): 
         return self._module(x)
 
-class AdversarialModel(torch.nn.Module):
-    _feature_extractor: torch.nn.Module
-    _classifier: torch.nn.Module
-    _discriminator: torch.nn.Module
+class AdversarialModel(nn.Module):
+    _feature_extractor: nn.Module
+    _classifier: nn.Module
+    _discriminator: nn.Module
     
-    def __init__(full_classifier:torch.nn.Module, use_discriminator: bool, num_classes:int):
+    def __init__(self, full_classifier: nn.Module, use_discriminator: bool, num_classes:int):
+        super(AdversarialModel, self).__init__()
         self.use_discriminator = use_discriminator
         num_ftrs = full_classifier.fc.in_features
 #         self._feature_extracgtor = nn.Sequential(full_classfier.layers[:-1])
         self._feature_extractor = full_classifier
         self._feature_extractor.fc = nn.Sequential() # De-facto 'identity' (empty layer, copies input to output).
         self._classifier = nn.Linear(num_ftrs, num_classes) 
-        self._discriminator = Discriminator()
+        self._discriminator = Discriminator(num_ftrs)
         
     #define discriminator class
     
-    def forward(x):
+   # def eval(self):
+    #    self._use_dicriminator = False
+     #   nn.Moduel.eval(self)
+    
+    def forward(self, x):
         x = self._feature_extractor(x)
         y = self._classifier(x)
         if self.use_discriminator:
@@ -77,7 +84,7 @@ class AdversarialModel(torch.nn.Module):
         else:
             z = None
         
-        return y, z
+        return y, z # TODO cut y output to half of the input
 
 #     ... in train script:
 #         y, z = model(x)
@@ -87,7 +94,7 @@ class AdversarialModel(torch.nn.Module):
 #     loss.backwards()  
     
     
-def get_model(device, class_names, architecture : NET_ARCHICECTURE):
+def get_model(device,use_discriminator, class_names,architecture : NET_ARCHICECTURE):
     assert architecture in linear_model_selector.keys()
     
     model_conv = models.resnet18(pretrained=True)
@@ -110,9 +117,9 @@ def get_model(device, class_names, architecture : NET_ARCHICECTURE):
 #         nn.ReLU(),
 #         nn.Linear(20, 1)
 #     ).to(device)
-
-    model_conv = AdversarialModel(model_conv, use_disc, len(class_names)).to(device)
-    return model_conv
+    
+    adv_model = AdversarialModel(model_conv, use_discriminator, len(class_names)).to(device)
+    return adv_model
 
 
 def set_requires_grad(model, requires_grad=True):
